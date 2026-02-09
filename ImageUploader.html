@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Upload with Metadata Viewer</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- EXIF.js library for reading image metadata -->
+    <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 20px;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 2.5rem;
+        }
+        
+        .subtitle {
+            color: #7f8c8d;
+            font-size: 1.2rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .upload-area {
+            background-color: white;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            margin-bottom: 40px;
+            text-align: center;
+            border: 3px dashed #d1d8e0;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-area.drag-over {
+            border-color: #3498db;
+            background-color: #f0f9ff;
+        }
+        
+        .upload-icon {
+            font-size: 60px;
+            color: #3498db;
+            margin-bottom: 20px;
+        }
+        
+        .upload-text {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .upload-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            font-size: 1.1rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 15px;
+            display: inline-block;
+        }
+        
+        .upload-btn:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+        }
+        
+        .file-types {
+            margin-top: 15px;
+            color: #7f8c8d;
+            font-size: 0.95rem;
+        }
+        
+        .image-display {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            justify-content: center;
+            margin-bottom: 40px;
+        }
+        
+        .image-card {
+            background-color: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            width: 100%;
+            max-width: 500px;
+            transition: transform 0.3s;
+        }
+        
+        .image-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .original-image-container {
+            position: relative;
+            width: 100%;
+            height: 300px;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #eee;
+            overflow: hidden;
+        }
+        
+        .original-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        
+        .original-image:hover {
+            transform: scale(1.02);
+        }
+        
+        .view-full-btn {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+            background-color: rgba(52, 152, 219, 0.9);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.3s;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        
+        .original-image-container:hover .view-full-btn {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .view-full-btn:hover {
+            background-color: #2980b9;
+        }
+        
+        .image-info {
+            padding: 20px;
+        }
+        
+        .image-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+        
+        .image-name {
+            font-weight: bold;
+            color: #2c3e50;
+            word-break: break-all;
+            font-size: 1.1rem;
+            flex: 1;
+        }
+        
+        .image-size {
+            color: #7f8c8d;
+            font-size: 0.85rem;
+            margin-left: 15px;
+            white-space: nowrap;
+        }
+        
+        .metadata-container {
+            margin-top: 10px;
+        }
+        
+        .metadata-title {
+            font-size: 0.95rem;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+        }
+        
+        .metadata-title i {
+            color: #3498db;
+        }
+        
+        .metadata-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+        
+        .metadata-item {
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .metadata-label {
+            font-weight: 600;
+            color: #666;
+            font-size: 0.75rem;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        
+        .metadata-value {
+            color: #2c3e50;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .no-metadata {
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            padding: 12px;
+            text-align: center;
+            color: #7f8c8d;
+            font-style: italic;
+            font-size: 0.85rem;
+        }
+        
+        .instructions {
+            background-color: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            margin-top: 40px;
+        }
+        
+        .instructions h2 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+        }
+        
+        .instructions ol {
+            padding-left: 20px;
+        }
+        
+        .instructions li {
+            margin-bottom: 10px;
+            color: #555;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 40px;
+            color: #7f8c8d;
+        }
+        
+        .empty-state i {
+            font-size: 80px;
+            margin-bottom: 20px;
+            color: #bdc3c7;
+        }
+        
+        .empty-state h3 {
+            margin-bottom: 10px;
+            font-size: 1.8rem;
+            color: #2c3e50;
+        }
+        
+        .empty-state p {
+            max-width: 500px;
+            margin: 0 auto;
+            font-size: 1.1rem;
+        }
+        
+        /* Full Image Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.95);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .modal-content {
+            max-width: 95%;
+            max-height: 95%;
+            position: relative;
+        }
+        
+        .modal-image {
+            max-width: 100%;
+            max-height: 80vh;
+            object-fit: contain;
+            border-radius: 8px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+        }
+        
+        .modal-close {
+            position: absolute;
+            top: -50px;
+            right: 0;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 2.8rem;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+        
+        .modal-close:hover {
+            color: #3498db;
+        }
+        
+        .modal-info {
+            color: white;
+            text-align: center;
+            margin-top: 20px;
+            font-size: 1.1rem;
+            max-width: 800px;
+        }
+        
+        .modal-navigation {
+            position: absolute;
+            top: 50%;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            transform: translateY(-50%);
+            padding: 0 20px;
+        }
+        
+        .nav-btn {
+            background-color: rgba(255, 255, 255, 0.15);
+            border: none;
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            font-size: 1.8rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+        }
+        
+        .nav-btn:hover {
+            background-color: rgba(255, 255, 255, 0.25);
+            transform: scale(1.1);
+        }
+        
+        .download-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin: 15px auto 0;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 1rem;
+        }
+        
+        .download-btn:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+        }
+        
+        .modal-metadata {
+            background-color: rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            max-width: 800px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .modal-metadata-title {
+            color: white;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .modal-metadata-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        
+        .modal-metadata-item {
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            padding: 8px 10px;
+        }
+        
+        .modal-metadata-label {
+            color: #ccc;
+            font-size: 0.8rem;
+            margin-bottom: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        
+        .modal-metadata-value {
+            color: white;
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+        
+        .error-message {
+            background-color: #ffeaea;
+            border-left: 4px solid #e74c3c;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 6px;
+            color: #c0392b;
+            font-size: 0.9rem;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding: 20px;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            border-top: 1px solid #eee;
+        }
+        
+        @media (max-width: 768px) {
+            .upload-area {
+                padding: 30px 20px;
+            }
+            
+            .image-display {
+                gap: 20px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .modal-navigation {
+                padding: 0 10px;
+            }
+            
+            .nav-btn {
+                width: 50px;
+                height: 50px;
+                font-size: 1.5rem;
+            }
+            
+            .metadata-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .modal-metadata-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .original-image-container {
+                height: 250px;
+            }
+            
+            .view-full-btn {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .modal-metadata-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .image-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .image-size {
+                margin-left: 0;
+                margin-top: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-camera"></i> Image Upload with Metadata</h1>
+            <p class="subtitle">Upload images to view EXIF metadata including aperture, shutter speed, ISO, and more.</p>
+        </header>
+        
+        <main>
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                </div>
+                <p class="upload-text">Drag & drop images or click to browse</p>
+                <input type="file" class="file-input" id="fileInput" accept="image/*" multiple>
+                <label for="fileInput" class="upload-btn">
+                    <i class="fas fa-folder-open"></i> Choose Images
+                </label>
+                <p class="file-types">Supports: JPG, PNG, GIF, WEBP, BMP, TIFF</p>
+            </div>
+            
+            <div class="loading" id="loadingIndicator">
+                <div class="spinner"></div>
+                <p>Processing image and extracting metadata...</p>
+            </div>
+            
+            <div class="image-display" id="imageDisplay">
+                <!-- Images will be displayed here -->
+                <div class="empty-state" id="emptyState">
+                    <i class="far fa-images"></i>
+                    <h3>No images uploaded yet</h3>
+                    <p>Upload images to view them with metadata details.</p>
+                </div>
+            </div>
+            
+            <!-- Full Image Modal -->
+            <div class="modal-overlay" id="imageModal">
+                <div class="modal-content">
+                    <button class="modal-close" id="modalClose">&times;</button>
+                    <div class="modal-navigation">
+                        <button class="nav-btn" id="prevBtn"><i class="fas fa-chevron-left"></i></button>
+                        <button class="nav-btn" id="nextBtn"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                    <img id="modalImage" class="modal-image" alt="Full size image">
+                    <div class="modal-info">
+                        <span id="modalImageName"></span>
+                        <div class="modal-metadata" id="modalMetadata">
+                            <!-- Metadata will be inserted here -->
+                        </div>
+                        <button class="download-btn" id="downloadBtn">
+                            <i class="fas fa-download"></i> Download Image
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="instructions">
+                <h2>How It Works</h2>
+                <ol>
+                    <li>Click "Choose Images" or drag & drop images into the upload area</li>
+                    <li>Images are processed locally (no server upload)</li>
+                    <li>EXIF metadata is extracted and displayed</li>
+                    <li>Click any image or "View Full" to see full size</li>
+                    <li>All processing happens in your browser</li>
+                </ol>
+                <p style="margin-top: 15px; color: #7f8c8d; font-style: italic; font-size: 0.9rem;">
+                    <i class="fas fa-info-circle"></i> EXIF metadata is typically found in JPEG/TIFF images from digital cameras.
+                </p>
+            </div>
+        </main>
+        
+        <footer>
+            <p>Image Upload with Metadata Viewer &copy; <span id="currentYear"></span></p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set current year in footer
+            document.getElementById('currentYear').textContent = new Date().getFullYear();
+            
+            // DOM elements
+            const fileInput = document.getElementById('fileInput');
+            const uploadArea = document.getElementById('uploadArea');
+            const imageDisplay = document.getElementById('imageDisplay');
+            const emptyState = document.getElementById('emptyState');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const imageModal = document.getElementById('imageModal');
+            const modalImage = document.getElementById('modalImage');
+            const modalImageName = document.getElementById('modalImageName');
+            const modalMetadata = document.getElementById('modalMetadata');
+            const modalClose = document.getElementById('modalClose');
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            const downloadBtn = document.getElementById('downloadBtn');
+            
+            // Application state
+            let uploadedImages = [];
+            let currentImageIndex = 0;
+            let processingQueue = [];
+            let isProcessing = false;
+            
+            // Drag and drop functionality
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('drag-over');
+            });
+            
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('drag-over');
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('drag-over');
+                
+                if (e.dataTransfer.files.length) {
+                    handleFiles(e.dataTransfer.files);
+                }
+            });
+            
+            // File input change event
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length) {
+                    handleFiles(e.target.files);
+                }
+            });
+            
+            
+            // Modal close button
+            modalClose.addEventListener('click', () => {
+                imageModal.style.display = 'none';
+            });
+            
+            // Close modal when clicking outside the image
+            imageModal.addEventListener('click', (e) => {
+                if (e.target === imageModal) {
+                    imageModal.style.display = 'none';
+                }
+            });
+            
+            // Navigation buttons
+            prevBtn.addEventListener('click', showPreviousImage);
+            nextBtn.addEventListener('click', showNextImage);
+            
+            // Download button
+            downloadBtn.addEventListener('click', downloadCurrentImage);
+            
+            // Keyboard navigation
+            document.addEventListener('keydown', (e) => {
+                if (imageModal.style.display === 'flex') {
+                    if (e.key === 'Escape') {
+                        imageModal.style.display = 'none';
+                    } else if (e.key === 'ArrowLeft') {
+                        showPreviousImage();
+                    } else if (e.key === 'ArrowRight') {
+                        showNextImage();
+                    }
+                }
+            });
+            
+            // Handle uploaded files with queuing system
+            function handleFiles(files) {
+                // Hide empty state
+                emptyState.style.display = 'none';
+                
+                // Add files to processing queue
+                for (let i = 0; i < files.length; i++) {
+                    processingQueue.push(files[i]);
+                }
+                
+                // Start processing if not already processing
+                if (!isProcessing) {
+                    processNextFile();
+                }
+            }
+            
+            // Process files one by one from the queue
+            function processNextFile() {
+                if (processingQueue.length === 0) {
+                    isProcessing = false;
+                    loadingIndicator.style.display = 'none';
+                    return;
+                }
+                
+                isProcessing = true;
+                loadingIndicator.style.display = 'block';
+                
+                const file = processingQueue.shift();
+                processSingleFile(file);
+            }
+            
+            // Process a single file with error handling
+            function processSingleFile(file) {
+                // Validate file type
+                if (!file.type.match('image.*')) {
+                    showError(file.name, 'Not an image file. Please upload only images.');
+                    processNextFile();
+                    return;
+                }
+                
+                // Create a FileReader to read the file
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    try {
+                        // Extract metadata and process the image
+                        extractMetadata(file, e.target.result);
+                    } catch (error) {
+                        console.error('Error processing file:', error);
+                        showError(file.name, 'Failed to process image. ' + error.message);
+                        processNextFile();
+                    }
+                };
+                
+                reader.onerror = function() {
+                    showError(file.name, 'Failed to read file. Please try again.');
+                    processNextFile();
+                };
+                
+                reader.onabort = function() {
+                    showError(file.name, 'File reading was aborted.');
+                    processNextFile();
+                };
+                
+                // Read the file as ArrayBuffer for EXIF
+                reader.readAsArrayBuffer(file);
+            }
+            
+            // Extract EXIF metadata from image
+            function extractMetadata(file, arrayBuffer) {
+                try {
+                    // Convert ArrayBuffer to base64 for image display
+                    const bytes = new Uint8Array(arrayBuffer);
+                    let binary = '';
+                    for (let i = 0; i < bytes.byteLength; i++) {
+                        binary += String.fromCharCode(bytes[i]);
+                    }
+                    const dataUrl = 'data:' + file.type + ';base64,' + btoa(binary);
+                    
+                    // Create a copy of the file for EXIF processing
+                    const fileForExif = new File([arrayBuffer], file.name, { type: file.type });
+                    
+                    // Use EXIF.js to read metadata
+                    EXIF.getData(fileForExif, function() {
+                        try {
+                            const metadata = {
+                                make: EXIF.getTag(this, 'Make'),
+                                model: EXIF.getTag(this, 'Model'),
+                                aperture: EXIF.getTag(this, 'FNumber'),
+                                shutterSpeed: EXIF.getTag(this, 'ExposureTime'),
+                                iso: EXIF.getTag(this, 'ISOSpeedRatings'),
+                                focalLength: EXIF.getTag(this, 'FocalLength'),
+                                dateTime: EXIF.getTag(this, 'DateTimeOriginal'),
+                                lensModel: EXIF.getTag(this, 'LensModel'),
+                                width: EXIF.getTag(this, 'PixelXDimension'),
+                                height: EXIF.getTag(this, 'PixelYDimension'),
+                            };
+                            
+                            // Process the image with metadata
+                            processImage(file.name, dataUrl, file.size, metadata);
+                        } catch (exifError) {
+                            // Process image without metadata
+                            processImage(file.name, dataUrl, file.size, {});
+                        }
+                    });
+                } catch (error) {
+                    // Try to process without metadata
+                    const bytes = new Uint8Array(arrayBuffer);
+                    let binary = '';
+                    for (let i = 0; i < bytes.byteLength; i++) {
+                        binary += String.fromCharCode(bytes[i]);
+                    }
+                    const dataUrl = 'data:' + file.type + ';base64,' + btoa(binary);
+                    processImage(file.name, dataUrl, file.size, {});
+                }
+            }
+            
+            // Process image and create thumbnails with metadata
+            function processImage(name, dataUrl, size, metadata) {
+                const img = new Image();
+                
+                img.onload = function() {
+                    try {
+                        // Create image card
+                        const imageCard = document.createElement('div');
+                        imageCard.className = 'image-card';
+                        
+                        // Format file size for display
+                        const fileSize = formatFileSize(size);
+                        
+                        // Format metadata for display (compact)
+                        const formattedMetadata = formatMetadataCompact(metadata);
+                        
+                        // Store image data for full-size viewing
+                        const imageId = Date.now() + Math.random();
+                        uploadedImages.push({
+                            id: imageId,
+                            name: name,
+                            dataUrl: dataUrl,
+                            size: fileSize,
+                            metadata: formattedMetadata,
+                            rawMetadata: metadata
+                        });
+                        
+                        // Build the image card HTML (compact version)
+                        imageCard.innerHTML = `
+                            <div class="original-image-container">
+                                <img src="${dataUrl}" alt="${name}" class="original-image" data-image-id="${imageId}">
+                                <button class="view-full-btn" data-image-id="${imageId}">
+                                    <i class="fas fa-expand"></i> View Full
+                                </button>
+                            </div>
+                            <div class="image-info">
+                                <div class="image-header">
+                                    <div class="image-name">${name}</div>
+                                    <div class="image-size">${fileSize}</div>
+                                </div>
+                                ${formattedMetadata.hasMetadata ? `
+                                    <div class="metadata-container">
+                                        <div class="metadata-title">
+                                            <i class="fas fa-info-circle"></i> Image Details
+                                        </div>
+                                        <div class="metadata-grid">
+                                            ${formattedMetadata.aperture ? `<div class="metadata-item">
+                                                <div class="metadata-label">Aperture</div>
+                                                <div class="metadata-value">${formattedMetadata.aperture}</div>
+                                            </div>` : ''}
+                                            ${formattedMetadata.shutterSpeed ? `<div class="metadata-item">
+                                                <div class="metadata-label">Shutter</div>
+                                                <div class="metadata-value">${formattedMetadata.shutterSpeed}</div>
+                                            </div>` : ''}
+                                            ${formattedMetadata.iso ? `<div class="metadata-item">
+                                                <div class="metadata-label">ISO</div>
+                                                <div class="metadata-value">${formattedMetadata.iso}</div>
+                                            </div>` : ''}
+                                            ${formattedMetadata.focalLength ? `<div class="metadata-item">
+                                                <div class="metadata-label">Focal Length</div>
+                                                <div class="metadata-value">${formattedMetadata.focalLength}</div>
+                                            </div>` : ''}
+                                            ${formattedMetadata.make ? `<div class="metadata-item">
+                                                <div class="metadata-label">Camera</div>
+                                                <div class="metadata-value">${formattedMetadata.make}</div>
+                                            </div>` : ''}
+                                            ${formattedMetadata.model ? `<div class="metadata-item">
+                                                <div class="metadata-label">Model</div>
+                                                <div class="metadata-value">${formattedMetadata.model}</div>
+                                            </div>` : ''}
+                                        </div>
+                                    </div>
+                                ` : `
+                                    <div class="metadata-container">
+                                        <div class="metadata-title">
+                                            <i class="fas fa-info-circle"></i> Image Details
+                                        </div>
+                                        <div class="no-metadata">
+                                            No EXIF metadata available
+                                        </div>
+                                    </div>
+                                `}
+                            </div>
+                        `;
+                        
+                        // Add the image card to the display area
+                        imageDisplay.appendChild(imageCard);
+                        
+                        // Add click event listeners to image and view button
+                        const imageElement = imageCard.querySelector('.original-image');
+                        const viewButton = imageCard.querySelector('.view-full-btn');
+                        
+                        imageElement.addEventListener('click', function() {
+                            const clickedImageId = this.getAttribute('data-image-id');
+                            openFullImage(clickedImageId);
+                        });
+                        
+                        viewButton.addEventListener('click', function() {
+                            const clickedImageId = this.getAttribute('data-image-id');
+                            openFullImage(clickedImageId);
+                        });
+                        
+                    } catch (error) {
+                        console.error('Error creating image card:', error);
+                        showError(name, 'Failed to create image preview.');
+                    }
+                    
+                    // Process next file in queue
+                    processNextFile();
+                };
+                
+                img.onerror = function() {
+                    showError(name, 'Failed to load image.');
+                    processNextFile();
+                };
+                
+                img.src = dataUrl;
+            }
+            
+            // Show error message
+            function showError(filename, message) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error-message';
+                errorDiv.innerHTML = `
+                    <strong>Error processing "${filename}":</strong> ${message}
+                `;
+                
+                const firstCard = imageDisplay.querySelector('.image-card');
+                if (firstCard) {
+                    imageDisplay.insertBefore(errorDiv, firstCard);
+                } else {
+                    imageDisplay.appendChild(errorDiv);
+                }
+            }
+            
+            // Format metadata for compact display
+            function formatMetadataCompact(metadata) {
+                const formatted = { hasMetadata: false };
+                
+                // Check if we have any metadata at all
+                let hasData = false;
+                
+                // Format aperture (FNumber) - most important
+                if (metadata.aperture) {
+                    const apertureValue = metadata.aperture;
+                    if (typeof apertureValue === 'object' && apertureValue.numerator && apertureValue.denominator) {
+                        const fNumber = apertureValue.numerator / apertureValue.denominator;
+                        formatted.aperture = `ƒ/${fNumber.toFixed(1)}`;
+                    } else if (typeof apertureValue === 'number') {
+                        formatted.aperture = `ƒ/${apertureValue.toFixed(1)}`;
+                    } else {
+                        formatted.aperture = metadata.aperture;
+                    }
+                    hasData = true;
+                }
+                
+                // Format shutter speed (ExposureTime)
+                if (metadata.shutterSpeed) {
+                    const shutterValue = metadata.shutterSpeed;
+                    if (typeof shutterValue === 'object' && shutterValue.numerator && shutterValue.denominator) {
+                        const speed = shutterValue.numerator / shutterValue.denominator;
+                        if (speed >= 1) {
+                            formatted.shutterSpeed = `${speed.toFixed(0)}s`;
+                        } else if (speed >= 0.5) {
+                            formatted.shutterSpeed = `1/${Math.round(1/speed)}s`;
+                        } else {
+                            formatted.shutterSpeed = `1/${Math.round(1/speed)}s`;
+                        }
+                    } else {
+                        formatted.shutterSpeed = metadata.shutterSpeed;
+                    }
+                    hasData = true;
+                }
+                
+                // Format focal length
+                if (metadata.focalLength) {
+                    const focalValue = metadata.focalLength;
+                    if (typeof focalValue === 'object' && focalValue.numerator && focalValue.denominator) {
+                        formatted.focalLength = `${(focalValue.numerator / focalValue.denominator).toFixed(0)}mm`;
+                    } else if (typeof focalValue === 'number') {
+                        formatted.focalLength = `${focalValue.toFixed(0)}mm`;
+                    } else {
+                        formatted.focalLength = metadata.focalLength;
+                    }
+                    hasData = true;
+                }
+                
+                // Simple fields
+                if (metadata.make) {
+                    // Abbreviate common camera brands
+                    formatted.make = metadata.make
+                        .replace('CANON', 'Canon')
+                        .replace('NIKON', 'Nikon')
+                        .replace('SONY', 'Sony')
+                        .replace('FUJIFILM', 'Fuji')
+                        .replace('OLYMPUS', 'Olympus')
+                        .replace('PANASONIC', 'Panasonic');
+                    hasData = true;
+                }
+                
+                if (metadata.model) {
+                    // Shorten model names
+                    formatted.model = metadata.model
+                        .replace('Canon ', '')
+                        .replace('Nikon ', '')
+                        .replace('SONY ', '')
+                        .substring(0, 12);
+                    hasData = true;
+                }
+                
+                if (metadata.iso) {
+                    formatted.iso = `ISO ${metadata.iso}`;
+                    hasData = true;
+                }
+                
+                formatted.hasMetadata = hasData;
+                return formatted;
+            }
+            
+            // Open full-size image modal
+            function openFullImage(imageId) {
+                const imageIndex = uploadedImages.findIndex(img => img.id == imageId);
+                
+                if (imageIndex !== -1) {
+                    currentImageIndex = imageIndex;
+                    updateModalImage();
+                    imageModal.style.display = 'flex';
+                }
+            }
+            
+            // Update modal with current image
+            function updateModalImage() {
+                if (uploadedImages.length === 0) return;
+                
+                const currentImage = uploadedImages[currentImageIndex];
+                modalImage.src = currentImage.dataUrl;
+                modalImageName.textContent = `${currentImage.name} (${currentImage.size})`;
+                
+                // Update metadata display in modal
+                updateModalMetadata(currentImage);
+                
+                // Update download link
+                downloadBtn.setAttribute('download', currentImage.name);
+                downloadBtn.setAttribute('href', currentImage.dataUrl);
+            }
+            
+            // Update metadata display in modal
+            function updateModalMetadata(image) {
+                if (!image.metadata.hasMetadata) {
+                    modalMetadata.innerHTML = `
+                        <div class="modal-metadata-title">
+                            <i class="fas fa-info-circle"></i> No EXIF metadata available
+                        </div>
+                    `;
+                    return;
+                }
+                
+                let metadataHTML = `
+                    <div class="modal-metadata-title">
+                        <i class="fas fa-camera"></i> Image Metadata
+                    </div>
+                    <div class="modal-metadata-grid">
+                `;
+                
+                // Camera info
+                if (image.metadata.make || image.metadata.model) {
+                    metadataHTML += `
+                        <div class="modal-metadata-item">
+                            <div class="modal-metadata-label">Camera</div>
+                            <div class="modal-metadata-value">${image.metadata.make || ''} ${image.metadata.model || ''}</div>
+                        </div>
+                    `;
+                }
+                
+                // Aperture
+                if (image.metadata.aperture) {
+                    metadataHTML += `
+                        <div class="modal-metadata-item">
+                            <div class="modal-metadata-label">Aperture</div>
+                            <div class="modal-metadata-value">${image.metadata.aperture}</div>
+                        </div>
+                    `;
+                }
+                
+                // Shutter Speed
+                if (image.metadata.shutterSpeed) {
+                    metadataHTML += `
+                        <div class="modal-metadata-item">
+                            <div class="modal-metadata-label">Shutter Speed</div>
+                            <div class="modal-metadata-value">${image.metadata.shutterSpeed}</div>
+                        </div>
+                    `;
+                }
+                
+                // ISO
+                if (image.metadata.iso) {
+                    metadataHTML += `
+                        <div class="modal-metadata-item">
+                            <div class="modal-metadata-label">ISO</div>
+                            <div class="modal-metadata-value">${image.metadata.iso}</div>
+                        </div>
+                    `;
+                }
+                
+                // Focal Length
+                if (image.metadata.focalLength) {
+                    metadataHTML += `
+                        <div class="modal-metadata-item">
+                            <div class="modal-metadata-label">Focal Length</div>
+                            <div class="modal-metadata-value">${image.metadata.focalLength}</div>
+                        </div>
+                    `;
+                }
+                
+                // Dimensions
+                if (image.rawMetadata.width && image.rawMetadata.height) {
+                    metadataHTML += `
+                        <div class="modal-metadata-item">
+                            <div class="modal-metadata-label">Dimensions</div>
+                            <div class="modal-metadata-value">${image.rawMetadata.width} × ${image.rawMetadata.height}</div>
+                        </div>
+                    `;
+                }
+                
+                metadataHTML += '</div>';
+                modalMetadata.innerHTML = metadataHTML;
+            }
+            
+            // Show previous image in modal
+            function showPreviousImage() {
+                if (uploadedImages.length === 0) return;
+                
+                currentImageIndex = (currentImageIndex - 1 + uploadedImages.length) % uploadedImages.length;
+                updateModalImage();
+            }
+            
+            // Show next image in modal
+            function showNextImage() {
+                if (uploadedImages.length === 0) return;
+                
+                currentImageIndex = (currentImageIndex + 1) % uploadedImages.length;
+                updateModalImage();
+            }
+            
+            // Download current image
+            function downloadCurrentImage() {
+                if (uploadedImages.length === 0) return;
+                
+                const currentImage = uploadedImages[currentImageIndex];
+                const link = document.createElement('a');
+                link.href = currentImage.dataUrl;
+                link.download = currentImage.name;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+            
+            // Format file size for display
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+            }
+        });
+    </script>
+</body>
+</html>
